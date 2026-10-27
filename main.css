@@ -1079,3 +1079,92 @@ td {
 .mc.up {
     background: #ffffff10
 }
+
+.pwrap {
+    position: relative;
+    display: flex
+}
+
+.pwrap input {
+    width: 100%;
+    padding-right: 84px
+}
+
+.pwtog {
+    position: absolute;
+    right: 6px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: 0;
+    color: var(--mut);
+    font-size: 13px;
+    cursor: pointer;
+    padding: 6px 10px
+}
+
+.pwtog:hover {
+    color: var(--tx)
+}
+
+/* ---------- Profil ---------- */
+.pfhead {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    flex-wrap: wrap;
+    margin-bottom: 14px
+}
+
+.pfhead .grow {
+    flex: 1;
+    min-width: 180px
+}
+
+.pfav {
+    width: 96px !important;
+    height: 96px !important;
+    font-size: 38px !important;
+    border-radius: 50%;
+    object-fit: cover;
+    flex: none
+}
+
+.pfbtns {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap
+}
+
+.pfout {
+    background: var(--red) !important
+}
+
+.pfgames {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 12px;
+    margin-bottom: 14px
+}
+
+.pfg {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px
+}
+
+.pfc {
+    aspect-ratio: 16/10;
+    background-size: cover;
+    background-position: center;
+    border-radius: 8px
+}
+
+#logoutbtn {
+    margin-left: 8px;
+    white-space: nowrap
+}

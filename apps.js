@@ -133,7 +133,6 @@ function card(g) {
 }
 const gameRow = (title, list) => `<h2>${title}</h2><div class="grid">${list.map(card).join('') || '<p class="muted">Nothing here yet.</p>'}</div>`;
 const statusPill = s => `<span class="st ${s}">${s}</span>`;
-const isAdmin = () => (S.profile && S.profile.role) === 'admin';
 
 const P = {};
 P.home = () => {
@@ -184,11 +183,18 @@ P.transactions = () => `<h1>Activity & Transactions</h1><div class="chips">${['a
 P.notifications = () => `<div class="row between"><h1>Notifications</h1><button class="ghost" data-act="readall">Mark all as read</button></div><div class="panel">${noteList(S.notes) || '<p class="muted">You are all caught up.</p>'}</div>`;
 const noteList = l => l.map(n => `<div class="note ${n.read ? '' : 'un'}" data-act="read" data-id="${n.id}"><div><b>${esc(n.title)}</b><div class="small muted">${esc(n.body)}</div><div class="small muted">${new Date(n.created_at).toLocaleString()}</div></div></div>`).join('');
 P.profile = () => {
-    const p = S.profile || {}, av = p.avatar_url ? `<img class="av" style="width:90px;height:90px" src="${esc(p.avatar_url)}" id="avprev">` : `<span class="av" style="width:90px;height:90px;font-size:34px" id="avprev">${esc((p.nickname || '?')[0]).toUpperCase()}</span>`;
-    return `<h1>Profile</h1><div class="split"><div class="panel"><div class="row">${av}<label class="ghost sm">Change picture<input type="file" id="avfile" accept="image/png,image/jpeg,image/webp" hidden></label></div>
-  <form id="f-prof" class="form"><label class="small muted">Full name<input name="full_name" value="${esc(p.full_name)}" placeholder="Optional"></label><label class="small muted">Nickname (your login name)<input value="${esc(p.nickname)}" disabled></label><button class="btn">Save changes</button></form></div>
-  <div class="panel"><div class="stat"><span class="muted">Balance</span><b>${money(p.balance)}</b></div><p class="small muted">Member since ${p.created_at ? fdate(p.created_at) : '-'}</p><p class="small muted">Games: ${S.owned.size} · Favorites: ${S.wish.size}</p><h3 style="margin-top:12px">Recent activity</h3>${S.txs.slice(0, 5).map(x => `<div class="small">${fdate(x.created_at)} - ${esc(x.type)} ${money(x.amount)}</div>`).join('') || '<p class="muted small">No activity yet.</p>'}</div></div>
-  <h2>Security</h2><form id="f-pw" class="panel form" style="max-width:420px"><input name="pw" type="password" placeholder="Yangi parol (kamida 3)" minlength="3" required><input name="pw2" type="password" placeholder="Confirm new password" required><button class="btn">Change password</button></form>`;
+    const p = S.profile || {}, init = esc((p.nickname || '?')[0]).toUpperCase(), n = S.owned.size, mine = DB.scores ? Object.keys(DB.scores).filter(k => k.indexOf(p.id + ':') === 0) : [];
+    const av = p.avatar_url ? `<img class="av pfav" src="${esc(p.avatar_url)}" alt="">` : `<span class="av pfav">${init}</span>`;
+    const lvl = n >= 6 ? 'Legenda' : n >= 3 ? 'Tajribali' : n >= 1 ? 'O\'yinchi' : 'Yangi';
+    const spent = DB.purchases.filter(x => x.user_id === p.id).reduce((a, x) => a + +x.price, 0), best = mine.reduce((a, k) => Math.max(a, DB.scores[k]), 0);
+    const games = [...S.owned.keys()].slice(0, 6).map(id => G(id)).filter(Boolean);
+    return `<div class="panel pfhead">${av}<div class="grow"><h1 style="margin:0">${esc(p.nickname)}</h1><p class="muted" style="margin:4px 0">${esc(p.full_name || 'Ism kiritilmagan')} · A'zo bo'lgan sana: ${p.created_at ? fdate(p.created_at) : '-'}</p><span class="pill">${lvl}</span></div><div class="pfbtns"><label class="ghost sm">Rasm tanlash<input type="file" id="avfile" accept="image/png,image/jpeg,image/webp" hidden></label><button class="btn sm pfout" data-act="logout">Chiqish</button></div></div>
+  <div class="stats">${[['Balans', money(p.balance)], ['O\'yinlar', n], ['Istaklar', S.wish.size], ['Sarflangan', money(spent)], ['Eng yaxshi ball', best]].map(x => `<div class="panel stat"><span class="muted">${x[0]}</span><b>${x[1]}</b></div>`).join('')}</div>
+  <h2>Mening o'yinlarim</h2><div class="pfgames">${games.map(g => `<div class="pfg"><div class="pfc" style="background-image:url('${esc(g.cover)}')"></div><b class="small">${esc(g.title)}</b><span class="muted small">Rekord: ${(DB.scores && DB.scores[p.id + ':' + g.id]) || 0}</span><button class="btn sm" data-act="play" data-id="${g.id}">▶ Play</button></div>`).join('') || '<p class="muted">Hali o\'yin sotib olmagansiz. <a href="#/games">O\'yinlarga o\'tish</a></p>'}</div>
+  <div class="split"><div class="panel"><h3>Ma'lumotlar</h3><form id="f-prof" class="form"><label class="small muted">Ismingiz<input name="full_name" value="${esc(p.full_name)}" placeholder="Ixtiyoriy" maxlength="40"></label><label class="small muted">Nickname (kirish nomi)<input value="${esc(p.nickname)}" disabled></label><button class="btn">Saqlash</button></form></div>
+  <div class="panel"><h3>Parolni almashtirish</h3><form id="f-pw" class="form"><input name="cur" type="password" placeholder="Hozirgi parol" required><input name="pw" type="password" placeholder="Yangi parol (kamida 3 ta belgi)" minlength="3" required><button class="btn">Almashtirish</button></form></div></div>
+  <h2>So'nggi harakatlar</h2><div class="panel">${S.txs.slice(0, 6).map(x => `<div class="row between small"><span>${fdate(x.created_at)} · ${esc(x.type)}</span><b>${money(x.amount)}</b></div>`).join('') || '<span class="muted small">Hozircha harakat yo\'q.</span>'}</div>
+  <div class="panel" style="margin-top:16px;border-color:var(--red)"><h3>Xavfli zona</h3><p class="muted small">Akkaunt va barcha ma'lumotlar (balans, o'yinlar, rekordlar) butunlay o'chadi.</p><button class="ghost sm" data-act="delacc">Akkauntni o'chirish</button></div>`;
 };
 P.appearance = () => {
     const b = (S.profile && S.profile.bg) || {};
@@ -201,13 +207,11 @@ P.settings = () => `<h1>Settings</h1><div class="split"><div class="panel"><h3>L
   <h3>Notifications</h3>${['Purchases & deposits', 'New games', 'Announcements'].map(x => `<label class="row"><input type="checkbox" style="width:auto" checked> ${x}</label>`).join('')}</div>
   <div class="panel"><h3>Privacy</h3><label class="row"><input type="checkbox" style="width:auto"> Show my library on my public profile</label><label class="row"><input type="checkbox" style="width:auto" checked> Appear in nickname search</label><p class="small muted">Account and security options are on the <a href="#/profile">Profile</a> page. Preferences here are stored on this device; sync them to a profile column when you need cross-device settings.</p>
   <button class="ghost" data-act="logout" style="margin-top:12px">Log out</button></div></div>`;
-P.help = () => `<h1>Help Center</h1><div class="split"><div class="panel"><h3>FAQ</h3>${[['How do deposits work?', 'Submit a request with your payment reference. An administrator verifies it and credits your balance. Nothing is credited until approved.'], ['Why is my deposit pending?', 'Manual deposits are reviewed by staff. Pending is normal until the payment is confirmed.'], ['Can I get a refund?', 'Contact support with your purchase date and game title.'], ['Are demo games playable?', 'No. Demo entries are labelled and have no build attached.']].map(f => `<details><summary><b>${f[0]}</b></summary><p class="muted small">${f[1]}</p></details>`).join('')}</div>
+P.help = () => `<h1>Help Center</h1><div class="split"><div class="panel"><h3>FAQ</h3>${[['How do deposits work?', 'Summani kiriting va Pul qo\'shish tugmasini bosing: balans shu zahoti to\'ldiriladi.'], ['Why is my deposit pending?', 'Manual deposits are reviewed by staff. Pending is normal until the payment is confirmed.'], ['Can I get a refund?', 'Contact support with your purchase date and game title.'], ['Are demo games playable?', 'No. Demo entries are labelled and have no build attached.']].map(f => `<details><summary><b>${f[0]}</b></summary><p class="muted small">${f[1]}</p></details>`).join('')}</div>
   <form id="f-help" class="panel form"><h3>Contact support</h3><input name="subject" placeholder="Subject" required><textarea name="message" rows="5" placeholder="How can we help?" required></textarea><button class="btn">Send ticket</button></form></div><h2>Your tickets</h2><div class="panel" id="tickets" class="muted">Loading...</div>`;
-P.admin = () => `<h1>Admin</h1><div class="stats" id="astats"></div><div class="split"><div class="panel"><h3>Pending deposits</h3><div id="apend">Loading...</div><h3 style="margin-top:16px">Games</h3><div id="agames"></div></div><div class="panel"><h3>Add game</h3><form id="f-game" class="form"><input name="title" placeholder="Title" required><select name="category">${CATS.map(c => `<option>${c}</option>`).join('')}</select><input name="price" type="number" step="0.01" min="0.5" max="100" placeholder="Price" required><label class="small muted">Muqova rasmi (ixtiyoriy, bo'lmasa avtomatik chiziladi)</label><input name="coverfile" type="file" accept="image/png,image/jpeg,image/webp"><textarea name="description" rows="3" placeholder="Description" required></textarea><button class="btn">Add game</button></form>
-<h3 style="margin-top:16px">Announcement</h3><form id="f-ann" class="form"><input name="title" placeholder="Title" required><textarea name="body" rows="2" placeholder="Message" required></textarea><button class="btn">Send to all users</button></form></div></div>`;
 
 function nav() {
-    const items = [...NAV, ...(isAdmin() ? [['admin', 'shield']] : [])];
+    const items = NAV;
     $('#nav').innerHTML = items.map(([k, i]) => `<a href="#/${k}" data-k="${k}" title="${t(k)}"><span class="ic">${ic(i)}</span><span class="lb">${t(k)}</span></a>`).join('');
     $('#badge').hidden = true;
     const p = S.profile; $('#userbtn').innerHTML = `<span class="av">${esc(((p && p.nickname) || 'G')[0]).toUpperCase()}</span><span class="lb">${esc((p && p.nickname) || 'Guest')}</span>`;
@@ -218,11 +222,11 @@ async function route() {
     const [path, qs] = (location.hash.slice(2) || 'home').split('?'), [pg, arg] = path.split('/');
     if (qs) { const c = new URLSearchParams(qs).get('cat'); if (c) { S.cat = c; S.page = 1; } history.replaceState(null, '', '#/' + pg); }
     const fn = P[pg] || P.home;
-    $('#main').innerHTML = pg === 'admin' && !isAdmin() ? '<h1>Access denied</h1><p class="muted">Administrators only.</p>' : fn(arg);
+    $('#main').innerHTML = fn(arg);
     $$('#nav a').forEach(a => a.classList.toggle('on', a.dataset.k === pg || (pg === 'game' && a.dataset.k === 'games')));
     document.body.classList.remove('navopen'); window.scrollTo(0, 0);
     if (pg === 'games') $('#sort').value = S.sort;
-    if (pg === 'game') loadReviews(arg); if (pg === 'help') loadTickets(); if (pg === 'admin' && isAdmin()) loadAdmin();
+    if (pg === 'game') loadReviews(arg); if (pg === 'help') loadTickets();
     nav();
 }
 async function loadReviews(id) {
@@ -235,12 +239,6 @@ async function loadTickets() {
     const el = $('#tickets'); if (!el) return;
     const data = DB.tickets.filter(x => x.user_id === S.profile.id).sort((x, y) => y.id - x.id);
     el.innerHTML = data.map(x => `<div class="row between"><span>${esc(x.subject)}</span>${statusPill(x.status === 'open' ? 'pending' : 'approved')}</div>`).join('') || '<span class="muted">Hozircha murojaat yo\'q.</span>';
-}
-async function loadAdmin() {
-    const pend = DB.deps.filter(d => d.status === 'pending');
-    $('#astats').innerHTML = [['Users', Object.keys(DB.users).length], ['Pending deposits', pend.length], ['Sales', money(DB.purchases.reduce((s, x) => s + +x.price, 0))]].map(x => `<div class="panel stat"><span class="muted">${x[0]}</span><b>${x[1]}</b></div>`).join('');
-    $('#apend').innerHTML = pend.map(d => `<div class="row between" style="margin:8px 0"><span class="small">${money(d.amount)} · ${esc(d.method)} · ${esc(d.reference)}</span><span><button class="btn sm" data-act="rev" data-id="${d.id}" data-ok="1">Approve</button> <button class="ghost sm" data-act="rev" data-id="${d.id}" data-ok="0">Reject</button></span></div>`).join('') || '<span class="muted">No pending requests.</span>';
-    $('#agames').innerHTML = S.games.map(g => `<div class="row between" style="margin:6px 0"><span class="small">${esc(g.title)} - ${money(g.price)}</span><span><button class="ghost sm" data-act="gcover" data-id="${g.id}">Rasm</button> <button class="ghost sm" data-act="gprice" data-id="${g.id}">Price</button> <button class="ghost sm" data-act="gdel" data-id="${g.id}">Delete</button></span></div>`).join('') || '<span class="muted">No games yet.</span>';
 }
 
 async function toggleFav(id) {
@@ -298,31 +296,12 @@ document.addEventListener('click', async e => {
     else if (a === 'cat') { S.cat = id; S.page = 1; route(); } else if (a === 'more') { S.page++; route(); } else if (a === 'txf') { S.txf = id; route(); }
     else if (a === 'lang') { localStorage.setItem('lang', id); route(); }
     else if (a === 'play') playGame(id);
-    else if (a === 'gcover') {
-        const inp = document.createElement('input'); inp.type = 'file'; inp.accept = 'image/png,image/jpeg,image/webp';
-        inp.onchange = async () => { const f0 = inp.files[0]; if (!lim(f0)) return; try { const g = DB.games.find(x => x.id == id); g.cover = await upload(f0, 640); g.custom_cover = true; saveDB(); toast('Muqova rasmi qo\'yildi.', 'ok'); await loadAll(); loadAdmin(); } catch (x) { toast(errMsg(x), 'err'); } };
-        inp.click();
-    } else if (a === 'logout') { closePlayer(); localStorage.removeItem(SESSION_KEY); start(null); }
+    else if (a === 'delacc') { if (!confirm('Akkauntni butunlay o\'chirasizmi?')) return; const u0 = DB.users[S.user.key].id; delete DB.users[S.user.key];['purchases', 'wishlists', 'notifications', 'txs', 'deps', 'reviews', 'tickets'].forEach(k => DB[k] = DB[k].filter(x => x.user_id !== u0));[DB.scores, DB.demos].forEach(o => o && Object.keys(o).forEach(k => { if (k.indexOf(u0 + ':') === 0) delete o[k]; })); saveDB(); closePlayer(); localStorage.removeItem(SESSION_KEY); start(null); toast('Akkaunt o\'chirildi.', 'ok'); }
+    else if (a === 'logout') { closePlayer(); localStorage.removeItem(SESSION_KEY); start(null); }
     else if (a === 'theme') { const th = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark'; document.documentElement.dataset.theme = th; setBg({ theme: th }); }
     else if (a === 'bg') { setBg({ css: BGS[id][1] }); route(); } else if (a === 'bgreset') { S.profile.bg = { theme: document.documentElement.dataset.theme }; applyBg(S.profile.bg); saveDB(); route(); }
     else if (a === 'read' || a === 'readall') {
         S.notes.forEach(n => { if (a === 'readall' || n.id == id) n.read = true; }); saveDB(); route(); renderDD();
-    } else if (a === 'gdel' || a === 'gprice') {
-        const g = DB.games.find(x => x.id == id); if (!g) return;
-        if (a === 'gdel') { if (!confirm('Delete this game?')) return; if (DB.purchases.some(p => p.game_id == id)) return toast('This game has purchases and cannot be deleted.', 'err'); DB.games = DB.games.filter(x => x.id != id); }
-        else { const v = parseFloat(prompt('New price (USD):')); if (!(v >= 0.5 && v <= 100)) return toast('Enter a price from 0.5 to 100.', 'err'); g.price = v; }
-        saveDB(); toast('Saved.', 'ok'); await loadAll(); loadAdmin();
-    } else if (a === 'rev') {
-        const d = DB.deps.find(x => x.id == id); if (!d || d.status !== 'pending') return toast('Request not pending', 'err');
-        const ok = el.dataset.ok === '1', u = Object.values(DB.users).find(x => x.id === d.user_id), now = new Date().toISOString();
-        d.status = ok ? 'approved' : 'rejected';
-        if (ok && u) {
-            u.balance = +(u.balance + d.amount + d.bonus).toFixed(2);
-            DB.txs.unshift({ id: nextId(), user_id: u.id, type: 'deposit', amount: d.amount, status: 'approved', ref: 'dep:' + d.id, created_at: now });
-            if (d.bonus > 0) DB.txs.unshift({ id: nextId(), user_id: u.id, type: 'bonus', amount: d.bonus, status: 'approved', ref: 'bonus:' + d.id, created_at: now });
-            addNote(u.id, 'Deposit approved', '$' + (d.amount + d.bonus) + ' was added to your balance.');
-        } else if (u) addNote(u.id, 'Deposit rejected', 'We could not verify reference ' + d.reference + '. Contact support.');
-        saveDB(); toast('Deposit reviewed.', 'ok'); loadAdmin();
     }
 });
 document.addEventListener('submit', async e => {
@@ -337,14 +316,14 @@ document.addEventListener('submit', async e => {
         if (u) {
             if (u.pass !== hashPw(d.password)) throw { message: 'Nickname yoki parol noto\'g\'ri.' };
         } else {
-            DB.users[key] = { id: uid(), nickname: nick, pass: hashPw(d.password), full_name: '', avatar_url: '', balance: 0, role: Object.keys(DB.users).length ? 'user' : 'admin', bg: {}, created_at: new Date().toISOString() };
+            DB.users[key] = { id: uid(), nickname: nick, pass: hashPw(d.password), full_name: '', avatar_url: '', balance: 0, role: 'user', bg: {}, created_at: new Date().toISOString() };
             addNote(DB.users[key].id, 'Xush kelibsiz!', 'Akkauntingiz yaratildi.');
             saveDB(); toast('Xush kelibsiz! Akkaunt yaratildi.', 'ok');
         }
         localStorage.setItem(SESSION_KEY, key); msg.textContent = ''; f.reset(); await start(key);
     });
     else if (f.id === 'f-prof') run(async () => { me().full_name = d.full_name; saveDB(); toast('Profile saved.', 'ok'); nav(); });
-    else if (f.id === 'f-pw') { if (d.pw !== d.pw2) return toast('Parollar mos emas.', 'err'); run(async () => { me().pass = hashPw(d.pw); saveDB(); f.reset(); toast('Parol yangilandi.', 'ok'); }); }
+    else if (f.id === 'f-pw') run(async () => { if (me().pass !== hashPw(d.cur)) throw { message: 'Hozirgi parol noto\'g\'ri.' }; me().pass = hashPw(d.pw); saveDB(); f.reset(); toast('Parol yangilandi.', 'ok'); });
     else if (f.id === 'f-dep') run(async () => {
         const amt = +d.amount;
         if (!(amt >= 3 && amt <= 1000)) throw { message: 'Summa 3 dan 1000 gacha bo\'lsin.' };
@@ -357,12 +336,10 @@ document.addEventListener('submit', async e => {
         saveDB(); closeModal(); toast('Balans to\'ldirildi: +' + money(amt + bonus), 'ok'); await loadAll(); route();
     });
     else if (f.id === 'f-help') run(async () => { DB.tickets.unshift({ id: nextId(), user_id: S.profile.id, subject: d.subject, message: d.message, status: 'open', created_at: new Date().toISOString() }); saveDB(); f.reset(); toast('Ticket sent.', 'ok'); loadTickets(); });
-    else if (f.id === 'f-game') run(async () => { const fi = f.querySelector('[name=coverfile]').files[0]; let cv = null; if (fi) { if (!lim(fi)) return; cv = await upload(fi, 640); } DB.games.push({ id: nextId() + 1000, title: d.title, category: d.category, price: +d.price, rating: 4, popularity: 0, description: d.description, cover: cv, custom_cover: !!cv, is_demo: false, released: new Date().toISOString() }); saveDB(); f.reset(); toast('Game added.', 'ok'); await loadAll(); loadAdmin(); });
     else if (f.id === 'f-review') run(async () => {
         const gid = +f.dataset.game; if (DB.reviews.some(r => r.user_id === S.profile.id && r.game_id === gid)) throw { message: 'You already reviewed this game.' };
         DB.reviews.push({ id: nextId(), user_id: S.profile.id, game_id: gid, rating: +d.rating, body: d.body, created_at: new Date().toISOString() }); saveDB(); toast('Review posted.', 'ok'); loadReviews(gid);
     });
-    else if (f.id === 'f-ann') run(async () => { Object.values(DB.users).forEach(u => addNote(u.id, d.title, d.body)); saveDB(); f.reset(); toast('Announcement sent.', 'ok'); await loadAll(); nav(); });
 });
 document.addEventListener('change', async e => {
     const el = e.target;
